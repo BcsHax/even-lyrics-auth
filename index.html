@@ -1,0 +1,190 @@
+<!doctype html>
+<!--
+  Spotify OAuth landing page for even-lyrics.
+
+  This file is NOT part of the app bundle. It is a standalone static page, meant
+  to be published on GitHub Pages (or any https host) and registered as the
+  redirect URI on the Spotify developer app. Keep it in sync with
+  SPOTIFY_REDIRECT_URI in src/nowplaying/spotifyAuth.ts — a mismatch fails at
+  the authorize step, before the user ever sees a consent screen.
+
+  It deliberately does nothing but show the code.
+
+  It CANNOT complete the sign-in itself, and that is by design rather than
+  laziness: PKCE's code verifier never leaves the phone's WebView storage, so
+  this page has no way to exchange the code even if it wanted to. Not being able
+  to is the security property.
+
+  Nothing here is sent anywhere. There is no script beyond reading the query
+  string this page was opened with, and no network request of any kind.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="robots" content="noindex" />
+    <title>Lyrics — Spotify sign-in</title>
+    <style>
+      :root {
+        --bg: #101418;
+        --surface: #191f26;
+        --surface-raised: #222a33;
+        --border: #2e3945;
+        --text: #e8edf2;
+        --text-dim: #97a4b2;
+        --accent: #4da3ff;
+        --ok: #56c271;
+        --warn: #e0a33e;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: calc(env(safe-area-inset-top) + 1.5rem) 1rem
+          calc(env(safe-area-inset-bottom) + 1.5rem);
+        background: var(--bg);
+        color: var(--text);
+        font: 16px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      }
+      main {
+        max-width: 34rem;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 0 0 1rem;
+      }
+      section {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1rem;
+      }
+      p {
+        margin: 0 0 0.75rem;
+      }
+      .dim {
+        color: var(--text-dim);
+        font-size: 0.87rem;
+      }
+      code {
+        display: block;
+        margin: 0.5rem 0 1rem;
+        padding: 0.85rem;
+        background: var(--surface-raised);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.9rem;
+        /* Authorization codes are long and must never be clipped — a truncated
+           code looks like a working one and fails at the exchange. */
+        overflow-wrap: anywhere;
+        user-select: all;
+      }
+      button {
+        appearance: none;
+        width: 100%;
+        min-height: 44px;
+        padding: 0.7rem 1rem;
+        background: var(--accent);
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        color: #06121f;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .warn {
+        color: var(--warn);
+      }
+      .ok {
+        color: var(--ok);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Lyrics — Spotify sign-in</h1>
+      <section id="panel"></section>
+    </main>
+
+    <script>
+      ;(function () {
+        var params = new URLSearchParams(window.location.search)
+        var code = params.get('code')
+        var error = params.get('error')
+        var panel = document.getElementById('panel')
+
+        function text(tag, className, content) {
+          var node = document.createElement(tag)
+          if (className) node.className = className
+          node.textContent = content
+          return node
+        }
+
+        if (error) {
+          panel.append(
+            text('p', 'warn', 'Spotify refused the sign-in: ' + error),
+            text(
+              'p',
+              'dim',
+              'Nothing was connected. Go back to the Lyrics app on your phone and start again.',
+            ),
+          )
+          return
+        }
+
+        if (!code) {
+          panel.append(
+            text('p', 'warn', 'No authorization code in this link.'),
+            text(
+              'p',
+              'dim',
+              'This page is where Spotify sends you after you approve access. Opening it ' +
+                'directly has nothing to show. Start the sign-in from the Lyrics app on your phone.',
+            ),
+          )
+          return
+        }
+
+        panel.append(
+          text('p', null, 'Copy this code, then paste it into the Lyrics app on your phone:'),
+        )
+
+        var block = document.createElement('code')
+        block.textContent = code
+        panel.append(block)
+
+        var copy = document.createElement('button')
+        copy.type = 'button'
+        copy.textContent = 'Copy code'
+        copy.addEventListener('click', function () {
+          // The clipboard API needs a secure context and a user gesture; both
+          // hold here. The manual fallback is the selectable block above, which
+          // is why it is `user-select: all` rather than decoration.
+          navigator.clipboard.writeText(code).then(
+            function () {
+              copy.textContent = 'Copied'
+              copy.className = 'ok'
+            },
+            function () {
+              copy.textContent = 'Copy failed — select the code above'
+            },
+          )
+        })
+        panel.append(copy)
+
+        panel.append(
+          text(
+            'p',
+            'dim',
+            'This code is single-use and expires in a few minutes. It cannot be used ' +
+              'without the verifier held on your phone, and this page sends it nowhere.',
+          ),
+        )
+      })()
+    </script>
+  </body>
+</html>
